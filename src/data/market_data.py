@@ -4,6 +4,7 @@ Market data collection and analysis module
 
 import pandas as pd
 import json
+import os
 
 class MarketDataHandler:
     def __init__(self):
@@ -28,9 +29,15 @@ class MarketDataHandler:
                 "Importance of social media presence for marketing"
             ]
         }
-    
+        self.data_dir = 'data'
+        self.market_overview_excel_path = os.path.join(self.data_dir, 'market_overview.xlsx')
+        self.market_data_json_path = os.path.join(self.data_dir, 'market_data.json')
+
     def create_market_summary_excel(self):
-        """Create an Excel summary of market data"""
+        """Create an Excel summary of market data."""
+        if not os.path.exists(self.data_dir):
+            os.makedirs(self.data_dir)
+
         # Market overview data
         overview_data = {
             "Category": [
@@ -48,33 +55,44 @@ class MarketDataHandler:
                 ", ".join(self.market_info["market_trends"])
             ]
         }
-        
         df_overview = pd.DataFrame(overview_data)
-        
-        # Target market breakdown
+
+        # Target market breakdown (simplified for this example)
         target_data = {
             "Segment": self.market_info["target_market"],
-            "Estimated Market Share": [""] * len(self.market_info["target_market"]),
-            "Growth Potential": [""] * len(self.market_info["target_market"]),
-            "Marketing Approach": [""] * len(self.market_info["target_market"])
+            "Estimated Market Share": [""] * len(self.market_info["target_market"]), # Placeholder
+            "Notes": [""] * len(self.market_info["target_market"]) # Placeholder
         }
-        
         df_target = pd.DataFrame(target_data)
         
-        # Write to Excel with multiple sheets
-        with pd.ExcelWriter('data/market_overview.xlsx') as writer:
-            df_overview.to_excel(writer, sheet_name='Market Overview', index=False)
-            df_target.to_excel(writer, sheet_name='Target Segments', index=False)
-            
-        return df_overview, df_target
-    
+        try:
+            with pd.ExcelWriter(self.market_overview_excel_path) as writer:
+                df_overview.to_excel(writer, sheet_name='Market Overview', index=False)
+                df_target.to_excel(writer, sheet_name='Target Segments', index=False)
+            print(f"Market overview Excel created at: {self.market_overview_excel_path}")
+            return self.market_overview_excel_path
+        except Exception as e:
+            print(f"Error creating market overview Excel: {e}")
+            return None
+
     def save_market_data(self):
-        """Save market data to JSON"""
-        with open('data/market_data.json', 'w') as f:
-            json.dump(self.market_info, f, indent=2)
+        """Save market data dictionary to a JSON file."""
+        if not os.path.exists(self.data_dir):
+            os.makedirs(self.data_dir)
+            
+        try:
+            with open(self.market_data_json_path, 'w') as f:
+                json.dump(self.market_info, f, indent=2)
+            print(f"Market data saved to {self.market_data_json_path}")
+            return "Market data saved successfully."
+        except Exception as e:
+            print(f"Error saving market data to JSON: {e}")
+            return f"Failed to save market data: {e}"
 
 if __name__ == "__main__":
     handler = MarketDataHandler()
-    overview, target = handler.create_market_summary_excel()
-    handler.save_market_data()
-    print("Market data summary created at data/market_overview.xlsx")
+    excel_path = handler.create_market_summary_excel()
+    json_status = handler.save_market_data()
+    
+    print(f"Excel path: {excel_path}")
+    print(f"JSON status: {json_status}")
