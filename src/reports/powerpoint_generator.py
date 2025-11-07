@@ -47,243 +47,175 @@ class MarketStudyPresentation:
             except OSError as e:
                 print(f"Error creating directory {self.reports_dir}: {e}")
 
-    def _add_title_slide(self, title_text: str, subtitle_text: str) -> None:
-        """Adds a title slide."""
-        slide_layout = self.prs.slide_layouts[0]  # Title Slide
-        slide = self.prs.slides.add_slide(slide_layout)
-        
+    def _add_title_slide(self, title_text: str, subtitle_text: str = "") -> None:
+        """Adds a title slide to the presentation."""
+        title_slide_layout = self.prs.slide_layouts[0]
+        slide = self.prs.slides.add_slide(title_slide_layout)
         title = slide.shapes.title
         subtitle = slide.placeholders[1]
-        
         title.text = title_text
         subtitle.text = subtitle_text
-        
-        # Style the title
-        title_format = title.text_frame.paragraphs[0]
-        title_format.font.size = Pt(40)
-        title_format.font.bold = True
-        title_format.font.color.rgb = self.primary_color
-        title_format.alignment = PP_ALIGN.CENTER
-        
-        subtitle_format = subtitle.text_frame.paragraphs[0]
-        subtitle_format.font.size = Pt(24)
-        subtitle_format.font.color.rgb = self.accent_color
-        subtitle_format.alignment = PP_ALIGN.CENTER
 
-    def _add_content_slide(self, title_text: str, content_items: List[str]) -> None:
-        """Adds a title and content slide with bullet points."""
-        slide_layout = self.prs.slide_layouts[1]  # Title and Content
-        slide = self.prs.slides.add_slide(slide_layout)
-        
-        title = slide.shapes.title
-        body = slide.shapes.placeholders[1]
-        
-        title.text = title_text
-        tf = body.text_frame
-        tf.clear() # Clear existing content
+    def _add_bullet_slide(self, title_text: str, bullet_points: List[str]) -> None:
+        """Adds a slide with a title and bullet points."""
+        bullet_slide_layout = self.prs.slide_layouts[1]
+        slide = self.prs.slides.add_slide(bullet_slide_layout)
+        shapes = slide.shapes
 
-        # Add bullet points
-        for i, item in enumerate(content_items):
+        title_shape = shapes.title
+        body_shape = shapes.placeholders[1]
+
+        title_shape.text = title_text
+
+        tf = body_shape.text_frame
+        tf.text = bullet_points[0] # Set the first bullet point
+        for point in bullet_points[1:]:
             p = tf.add_paragraph()
-            p.text = item
-            p.font.size = Pt(18)
-            p.font.color.rgb = RGBColor(0x00, 0x00, 0x00) # Black text
-            p.level = 0
-            if i == 0: # First item for title styling
-                p.font.bold = True
-                p.font.color.rgb = self.primary_color
+            p.text = point
+            p.level = 0 # Adjust level for sub-bullets if needed
 
-    def _load_excel_data(self, filepath: str) -> Optional[pd.DataFrame]:
-        """Loads data from an Excel file, handling potential errors."""
-        if not os.path.exists(filepath):
-            print(f"Error: Data file not found at {filepath}")
-            return None
-        try:
-            df = pd.read_excel(filepath)
-            return df
-        except Exception as e:
-            print(f"Error reading Excel file {filepath}: {e}")
-            return None
-
-    def _add_chart_slide(self, title_text: str, chart_data_dict: Dict[str, Any], chart_type: str = 'bar') -> None:
+    def _add_chart_slide(self, title_text: str, chart_data: CategoryChartData, chart_type=XL_CHART_TYPE.BAR) -> None:
         """Adds a slide with a chart."""
-        slide_layout = self.prs.slide_layouts[5] # Blank slide layout for more control
+        slide_layout = self.prs.slide_layouts[5] # Blank slide layout
         slide = self.prs.slides.add_slide(slide_layout)
-        
-        # Add title shape
-        left = top = width = height = Inches(0)
-        title_shape = slide.shapes.add_textbox(left, top, width, height)
-        title_frame = title_shape.text_frame
-        title_frame.text = title_text
-        title_frame.paragraphs[0].font.size = Pt(28)
-        title_frame.paragraphs[0].font.bold = True
-        title_frame.paragraphs[0].font.color.rgb = self.primary_color
-        title_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-        
-        # Position chart
-        chart_left = Inches(1)
+        shapes = slide.shapes
+
+        # Add chart title
+        left = top = width = height = Inches(1) # Placeholder values, will be adjusted
+        txBox = shapes.add_textbox(left, top, width, height)
+        tf = txBox.text_frame
+        tf.text = title_text
+        tf.paragraphs[0].font.size = Pt(18)
+        tf.paragraphs[0].font.bold = True
+        tf.paragraphs[0].alignment = PP_ALIGN.CENTER
+
+        # Position and size the chart
+        chart_left = Inches(0.5)
         chart_top = Inches(1.5)
-        chart_width = Inches(10)
-        chart_height = Inches(5)
+        chart_width = Inches(12.33)
+        chart_height = Inches(5.5)
 
-        if chart_type == 'bar':
-            chart_data = CategoryChartData()
-            chart_data.categories = chart_data_dict['categories']
-            for series_name, values in chart_data_dict['series'].items():
-                chart_data.add_series(series_name, values)
+        graphic_frame = shapes.add_chart(
+            chart_type, chart_left, chart_top, chart_width, chart_height, chart_data
+        )
+        chart = graphic_frame.chart
 
-            x, y, cx, cy = chart_left, chart_top, chart_width, chart_height
-            graphic_frame = slide.shapes.add_chart(
-                XL_CHART_TYPE.COLUMN_CLUSTERED, x, y, cx, cy, chart_data
-            )
-            chart = graphic_frame.chart
-            chart.has_legend = True
-            chart.legend.position = XL_LEGEND_POSITION.TOP_RIGHT
-            chart.value_axis.has_major_gridlines = True
-            chart.category_axis.has_major_gridlines = False # Often cleaner without vertical gridlines
-            chart.category_axis.tick_labels.font.size = Pt(10)
-            chart.value_axis.tick_labels.font.size = Pt(10)
-            chart.plots[0].has_data_labels = True
-            chart.plots[0].data_labels.number_format = "0" # Ensure integer display
-            chart.plots[0].data_labels.position = XL_LABEL_POSITION.OUTSIDE_END
+        # Customize chart appearance
+        chart.has_legend = True
+        chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+        chart.legend.include_in_layout = False
+        chart.value_axis.has_major_gridlines = True
 
-        elif chart_type == 'pie':
-            chart_data = CategoryChartData()
-            chart_data.categories = chart_data_dict['categories']
-            for series_name, values in chart_data_dict['series'].items():
-                chart_data.add_series(series_name, values)
+        # Add data labels if applicable (e.g., for bar charts)
+        if chart_type == XL_CHART_TYPE.BAR:
+            plot = chart.plots[0]
+            plot.has_data_labels = True
+            data_labels = plot.data_labels
+            data_labels.position = XL_LABEL_POSITION.OUTSIDE_END
 
-            x, y, cx, cy = chart_left, chart_top, chart_width, chart_height
-            graphic_frame = slide.shapes.add_chart(
-                XL_CHART_TYPE.PIE, x, y, cx, cy, chart_data
-            )
-            chart = graphic_frame.chart
-            chart.has_legend = True
-            chart.legend.position = XL_LEGEND_POSITION.RIGHT
-            chart.plots[0].has_data_labels = True
-            chart.plots[0].data_labels.show_percentage = True
-            chart.plots[0].data_labels.show_val = False
-            chart.plots[0].data_labels.font.size = Pt(10)
-            
+
+    def _load_competitor_data_for_chart(self) -> Optional[pd.DataFrame]:
+        """Loads and prepares competitor data for charting."""
+        if os.path.exists(self.competitor_data_file):
+            try:
+                df = pd.read_excel(self.competitor_data_file)
+                df.columns = df.columns.str.strip()
+                # Calculate strength count for the chart
+                df['Strength_Count'] = df['Strengths'].astype(str).apply(lambda x: len(x.split(',')) if x and x.strip() else 0)
+                # Sort by strength count for better visualization
+                return df.sort_values('Strength_Count', ascending=False)
+            except Exception as e:
+                print(f"Error loading or processing competitor data for chart: {e}")
+                return None
+        else:
+            print(f"Competitor data file not found: {self.competitor_data_file}")
+            return None
+
+    def _load_market_data_for_presentation(self) -> Optional[Dict[str, Any]]:
+        """Loads market data from JSON."""
+        if os.path.exists('data/market_data.json'):
+            try:
+                with open('data/market_data.json', 'r', encoding='utf-8') as f:
+                    return pd.DataFrame(json.load(f)).to_dict('records')[0]
+            except Exception as e:
+                print(f"Error loading market data from JSON: {e}")
+                return None
+        else:
+            print("Market data JSON file not found.")
+            return None
+
     def generate_presentation(self) -> Optional[str]:
-        """Generates the complete PowerPoint presentation."""
-        print("Generating PowerPoint presentation...")
+        """
+        Generates the market study PowerPoint presentation.
 
-        # Slide 1: Title Slide
-        self._add_title_slide("Étude de Marché - Location Festive Niort", "Analyse Complète du Secteur")
-
-        # Slide 2: Introduction/Executive Summary
-        market_df = self._load_excel_data(self.market_data_file)
-        market_summary_items = []
-        if market_df is not None:
-            market_summary_items.append(f"Industrie: {market_df.loc[market_df['Category'] == 'Industry', 'Details'].iloc[0]}")
-            market_summary_items.append(f"Localisation Principale: {market_df.loc[market_df['Category'] == 'Primary Location', 'Details'].iloc[0]}")
-            market_summary_items.append(f"Tendances Clés: {market_df.loc[market_df['Category'] == 'Key Trends', 'Details'].iloc[0]}")
-        else:
-            market_summary_items.append("Données de marché indisponibles.")
-        self._add_content_slide("Résumé Exécutif", market_summary_items)
-
-        # Slide 3: Competitor Overview
-        competitor_df = self._load_excel_data(self.competitor_data_file)
-        competitor_summary_items = []
-        if competitor_df is not None:
-            total_competitors = len(competitor_df)
-            avg_strengths = competitor_df['Strengths'].dropna().apply(lambda x: len(str(x).split(',')) if pd.notnull(x) and str(x).strip() else 0).mean()
-            avg_weaknesses = competitor_df['Weaknesses'].dropna().apply(lambda x: len(str(x).split(',')) if pd.notnull(x) and str(x).strip() else 0).mean()
-            
-            competitor_summary_items.append(f"Nombre total de concurrents analysés : {total_competitors}")
-            competitor_summary_items.append(f"Nombre moyen de points forts par concurrent : {avg_strengths:.2f}")
-            competitor_summary_items.append(f"Nombre moyen de points faibles par concurrent : {avg_weaknesses:.2f}")
-            
-            market_pos_counts = competitor_df['Market Position'].value_counts()
-            if not market_pos_counts.empty:
-                 competitor_summary_items.append("Répartition du positionnement sur le marché :")
-                 for position, count in market_pos_counts.items():
-                     competitor_summary_items.append(f"  - {position}: {count}")
-            else:
-                competitor_summary_items.append("Positionnement sur le marché non spécifié pour la plupart des concurrents.")
-        else:
-            competitor_summary_items.append("Données concurrentielles indisponibles.")
-        self._add_content_slide("Aperçu des Concurrents", competitor_summary_items)
-
-        # Slide 4: Competitor Strengths vs. Weaknesses Bar Chart
-        if competitor_df is not None and not competitor_df.empty:
-            competitor_df['Num_Strengths'] = competitor_df['Strengths'].dropna().apply(
-                lambda x: len(str(x).split(',')) if pd.notnull(x) and str(x).strip() else 0
-            )
-            competitor_df['Num_Weaknesses'] = competitor_df['Weaknesses'].dropna().apply(
-                lambda x: len(str(x).split(',')) if pd.notnull(x) and str(x).strip() else 0
-            )
-            
-            chart_data_dict = {
-                'categories': competitor_df['Competitor'].tolist(),
-                'series': {
-                    'Forces': competitor_df['Num_Strengths'].tolist(),
-                    'Faiblesses': competitor_df['Num_Weaknesses'].tolist()
-                }
-            }
-            self._add_chart_slide("Comparaison des Forces et Faiblesses par Concurrent", chart_data_dict, chart_type='bar')
-        else:
-            self._add_content_slide("Analyse des Forces et Faiblesses", ["Données concurrentielles indisponibles pour générer le graphique."])
-
-        # Slide 5: Market Position Pie Chart
-        if competitor_df is not None and not competitor_df.empty:
-            market_pos_counts = competitor_df['Market Position'].value_counts()
-            if not market_pos_counts.empty:
-                chart_data_dict = {
-                    'categories': market_pos_counts.index.tolist(),
-                    'series': {
-                        'Nombre de Concurrents': market_pos_counts.values.tolist()
-                    }
-                }
-                self._add_chart_slide("Répartition du Positionnement sur le Marché", chart_data_dict, chart_type='pie')
-            else:
-                self._add_content_slide("Positionnement sur le Marché", ["Aucune donnée de positionnement sur le marché disponible."])
-        else:
-             self._add_content_slide("Positionnement sur le Marché", ["Données concurrentielles indisponibles pour générer le graphique."])
-
-        # Slide 6: Market Trends
-        market_trends_items = []
-        if market_df is not None:
-            trends_data = market_df[market_df['Category'] == 'Key Trends']
-            if not trends_data.empty:
-                trends_str = trends_data['Details'].iloc[0]
-                if pd.notna(trends_str):
-                    market_trends_items = [f"- {item.strip()}" for item in trends_str.split(',')]
-            if not market_trends_items:
-                market_trends_items.append("Aucune tendance de marché spécifique identifiée.")
-        else:
-            market_trends_items.append("Données de marché indisponibles.")
-        self._add_content_slide("Tendances Clés du Marché", market_trends_items)
-
-        # Slide 7: Seasonality
-        seasonality_items = []
-        if market_df is not None:
-            seasonality_data = market_df[market_df['Category'] == 'Seasonal Peaks']
-            if not seasonality_data.empty:
-                seasonality_str = seasonality_data['Details'].iloc[0]
-                if pd.notna(seasonality_str):
-                    seasonality_items = [f"- {item.strip()}" for item in seasonality_str.split(',')]
-            if not seasonality_items:
-                seasonality_items.append("Aucune information sur la saisonnalité du marché identifiée.")
-        else:
-            seasonality_items.append("Données de marché indisponibles.")
-        self._add_content_slide("Facteurs de Saisonnalité", seasonality_items)
-        
-        # Slide 8: Conclusion/Recommendations (Placeholder)
-        self._add_content_slide("Conclusion et Recommandations", [
-            "Synthèse des analyses menées.",
-            "Identification des opportunités stratégiques.",
-            "Recommandations pour 'Location Festive Niort'.",
-            "(Cette section nécessite une analyse plus approfondie des données.)"
-        ])
-
-        # Save the presentation
+        Returns:
+            Optional[str]: The path to the generated PPTX file, or None if generation failed.
+        """
         try:
+            # --- Slide 1: Title Slide ---
+            self._add_title_slide("Étude de Marché - Location Festive Niort", "Analyse et Recommandations Stratégiques")
+
+            # --- Slide 2: Introduction / Business Context ---
+            self._add_bullet_slide("Contexte de l'Entreprise", [
+                "Entreprise : Location Festive Niort",
+                "Secteur : Location de matériel festif (machines à popcorn, barbe à papa, etc.)",
+                "Zone Géographique : Niort et ses environs",
+                "Objectif : Analyser le marché et identifier les opportunités de croissance."
+            ])
+
+            # --- Slide 3: Market Overview ---
+            market_info = self._load_market_data_for_presentation()
+            if market_info:
+                bullet_points = [f"{key.replace('_', ' ').title()}: {', '.join(value) if isinstance(value, list) else value}" for key, value in market_info.items()]
+                self._add_bullet_slide("Aperçu du Marché", bullet_points)
+            else:
+                self._add_bullet_slide("Aperçu du Marché", ["Données du marché non disponibles."])
+
+            # --- Slide 4: Competitor Analysis Summary ---
+            competitor_df = self._load_competitor_data_for_chart()
+            if competitor_df is not None and not competitor_df.empty:
+                competitor_analysis_results = CompetitorAnalysis().analyze_competitor_strengths()
+                
+                summary_points = [
+                    f"Nombre total de concurrents analysés : {competitor_analysis_results.get('total_competitors', 'N/A')}",
+                    f"Positionnement moyen sur le marché : {competitor_analysis_results.get('market_position_distribution', {})}",
+                    f"Répartition par spécialisation : {competitor_analysis_results.get('competitors_by_specialization', {})}"
+                ]
+                self._add_bullet_slide("Analyse de la Concurrence (Synthèse)", summary_points)
+
+                # --- Slide 5: Competitor Strengths Chart ---
+                chart_data = CategoryChartData()
+                chart_data.categories = competitor_df['Competitor'].tolist()
+                chart_data.add_series('Nombre de points forts', competitor_df['Strength_Count'].tolist())
+                self._add_chart_slide("Nombre de Points Forts par Concurrent", chart_data, XL_CHART_TYPE.BAR)
+            else:
+                 self._add_bullet_slide("Analyse de la Concurrence", ["Données des concurrents non disponibles pour l'analyse."])
+
+
+            # --- Slide 6: Differentiation & Opportunities ---
+            self._add_bullet_slide("Facteurs Clés de Différenciation et Opportunités", [
+                "Possibilité d'acheter des machines directement en Chine (avantage coût).",
+                "Réseau de contacts avec des Associations de Parents d'Élèves (APE) pour événements scolaires.",
+                "Offrir des services personnalisés et des forfaits attractifs.",
+                "Mettre en avant la présence locale et la réactivité.",
+                "Développer une stratégie de marketing digital ciblée (SEO local, réseaux sociaux)."
+            ])
+
+            # --- Slide 7: Conclusion & Recommendations ---
+            self._add_bullet_slide("Conclusion et Recommandations", [
+                "Le marché de la location de matériel festif à Niort présente des opportunités.",
+                "Exploiter les avantages de sourcing (Chine) pour proposer des prix compétitifs.",
+                "Renforcer les partenariats avec les établissements scolaires et organisateurs d'événements.",
+                "Investir dans la présence en ligne et la communication ciblée.",
+                "Se différencier par la qualité du service et la personnalisation des offres."
+            ])
+
+            # --- Save the presentation ---
             self.prs.save(self.output_filename)
-            print(f"PowerPoint presentation saved successfully to: {self.output_filename}")
+            print(f"Market study presentation generated successfully at: {self.output_filename}")
             return self.output_filename
+
         except Exception as e:
-            print(f"Error saving PowerPoint presentation: {e}")
+            print(f"An error occurred during presentation generation: {e}")
             return None
 

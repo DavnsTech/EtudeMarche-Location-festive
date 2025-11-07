@@ -57,20 +57,45 @@ class CompetitorDataCollector:
         }
 
         df = pd.DataFrame(data)
+
         try:
             df.to_excel(self.template_filepath, index=False)
-            print(f"Competitor research template created at {self.template_filepath}")
+            print(f"Competitor research template created at: {self.template_filepath}")
             return self.template_filepath
         except Exception as e:
-            print(f"Error creating competitor template: {e}")
+            print(f"Error saving competitor template to {self.template_filepath}: {e}")
             return None
 
-    def save_competitor_data(self, data_dict: Dict[str, Any]) -> str:
+    def load_competitor_data(self) -> Optional[pd.DataFrame]:
+        """
+        Loads competitor data from the JSON file if it exists.
+
+        Returns:
+            Optional[pd.DataFrame]: DataFrame with competitor data, or None if file not found or error.
+        """
+        if os.path.exists(self.json_filepath):
+            try:
+                with open(self.json_filepath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                df = pd.DataFrame(data)
+                print(f"Competitor data loaded from {self.json_filepath}")
+                return df
+            except json.JSONDecodeError:
+                print(f"Error: Could not decode JSON from {self.json_filepath}. File might be corrupted.")
+                return None
+            except Exception as e:
+                print(f"Error loading competitor data from {self.json_filepath}: {e}")
+                return None
+        else:
+            print(f"Competitor data file not found at {self.json_filepath}. Please run data collection.")
+            return None
+
+    def save_competitor_data(self, df: pd.DataFrame) -> str:
         """
         Saves competitor data to a JSON file.
 
         Args:
-            data_dict (Dict[str, Any]): A dictionary containing competitor data.
+            df (pd.DataFrame): The DataFrame containing competitor data.
 
         Returns:
             str: A status message indicating success or failure.
@@ -80,58 +105,11 @@ class CompetitorDataCollector:
                 os.makedirs(self.data_dir)
                 print(f"Created directory: {self.data_dir}")
             except OSError as e:
-                return f"Error: Could not create data directory: {e}"
+                return f"Error creating directory {self.data_dir}: {e}"
 
         try:
-            with open(self.json_filepath, 'w', encoding='utf-8') as f:
-                json.dump(data_dict, f, indent=4, ensure_ascii=False)
+            df.to_json(self.json_filepath, orient='records', indent=4, force_ascii=False)
             return f"Competitor data saved successfully to {self.json_filepath}"
         except Exception as e:
-            return f"Error saving competitor data to JSON: {e}"
-
-    def load_competitor_data(self) -> Optional[Dict[str, Any]]:
-        """
-        Loads competitor data from the JSON file.
-
-        Returns:
-            Optional[Dict[str, Any]]: The loaded data dictionary, or None if the file doesn't exist or an error occurs.
-        """
-        if not os.path.exists(self.json_filepath):
-            print(f"Competitor data file '{self.json_filepath}' not found.")
-            return None
-        try:
-            with open(self.json_filepath, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Error loading competitor data from JSON: {e}")
-            return None
-
-    def update_competitor_entry(self, competitor_name: str, data: Dict[str, Any]) -> str:
-        """
-        Updates a specific competitor's entry in the JSON data.
-
-        Args:
-            competitor_name (str): The name of the competitor to update.
-            data (Dict[str, Any]): The new data for the competitor.
-
-        Returns:
-            str: A status message.
-        """
-        all_data = self.load_competitor_data()
-        if all_data is None:
-            all_data = {"competitors": []}
-
-        found = False
-        for entry in all_data["competitors"]:
-            if entry.get("Competitor") == competitor_name:
-                entry.update(data)
-                found = True
-                break
-        
-        if not found:
-            new_entry = {"Competitor": competitor_name}
-            new_entry.update(data)
-            all_data["competitors"].append(new_entry)
-
-        return self.save_competitor_data(all_data)
+            return f"Error saving competitor data to {self.json_filepath}: {e}"
 

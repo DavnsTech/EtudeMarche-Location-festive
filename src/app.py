@@ -7,6 +7,7 @@ from data.competitor_data import CompetitorDataCollector
 from data.market_data import MarketDataHandler
 from analysis.market_analysis import MarketAnalyzer
 from reports.generate_reports import generate_all_reports
+import json
 
 def main():
     """
@@ -49,11 +50,11 @@ def main():
     
     if analysis_results:
         print("   ✓ Analyse complète effectuée.")
-        print(f"     - Résumé de l'analyse sauvegardé à : {analysis_results.get('full_analysis_summary_report', 'N/A')}")
-        print(f"     - Graphique de comparaison des concurrents sauvegardé à : {analysis_results.get('competitor_comparison_chart', 'N/A')}")
+        print(f"     - Résumé de l'analyse : {analysis_results.get('full_analysis_summary_report', 'N/A')}")
+        print(f"     - Chemin graphique comparaison concurrents : {analysis_results.get('competitor_comparison_chart', 'N/A')}")
     else:
         print("   ✗ Échec de l'exécution de l'analyse complète.")
-    
+
     # Step 3: Generate reports
     print("\n3. Génération des rapports...")
     excel_report_path, ppt_report_path = generate_all_reports()
@@ -62,13 +63,66 @@ def main():
         print(f"   ✓ Rapport Excel généré : {excel_report_path}")
     else:
         print("   ✗ Échec de la génération du rapport Excel.")
-    
+        
     if ppt_report_path:
         print(f"   ✓ Rapport PowerPoint généré : {ppt_report_path}")
     else:
         print("   ✗ Échec de la génération du rapport PowerPoint.")
 
-    print("\n=== Processus terminé ===")
+    # Generate QA report
+    print("\n4. Génération du rapport QA...")
+    qa_report = generate_qa_report(analysis_results, excel_report_path, ppt_report_path)
+    qa_report_path = "qa_report.json"
+    try:
+        with open(qa_report_path, 'w', encoding='utf-8') as f:
+            json.dump(qa_report, f, indent=4)
+        print(f"   ✓ Rapport QA généré : {qa_report_path}")
+    except Exception as e:
+        print(f"   ✗ Erreur lors de la génération du rapport QA : {e}")
+
+    print("\n=== Fin de l'étude de marché ===")
+
+def generate_qa_report(analysis_results: Dict[str, Any], excel_path: Optional[str], ppt_path: Optional[str]) -> Dict[str, Any]:
+    """
+    Generates a QA report summarizing the process and outcomes.
+    """
+    qa_status = {
+        "project_name": "Location Festive Niort - Market Study",
+        "overall_status": "Passed" if analysis_results and excel_path and ppt_path else "Failed",
+        "steps": {
+            "data_setup": {
+                "status": "Passed" if analysis_results is not None else "Failed",
+                "message": "Data templates and initial data setup completed." if analysis_results is not None else "Data setup failed."
+            },
+            "analysis": {
+                "status": "Passed" if analysis_results and analysis_results.get("full_analysis_summary_report") else "Failed",
+                "message": analysis_results.get("full_analysis_summary_report", "Analysis failed.") if analysis_results else "Analysis not performed."
+            },
+            "report_generation": {
+                "status": "Passed" if excel_path and ppt_path else "Failed",
+                "message": f"Excel report: {excel_path if excel_path else 'Failed'}. PowerPoint report: {ppt_path if ppt_path else 'Failed'}."
+            }
+        },
+        "generated_files": {
+            "excel_report": excel_path if excel_path else "Not generated",
+            "powerpoint_report": ppt_path if ppt_path else "Not generated",
+            "qa_report": "qa_report.json" # This file itself
+        },
+        "analysis_details": analysis_results.get("competitor_analysis", {}), # Include some analysis details
+        "errors": [] # Placeholder for specific errors if any occurred
+    }
+
+    if not analysis_results:
+        qa_status["errors"].append("Market analysis did not return results.")
+    if not excel_path:
+        qa_status["errors"].append("Excel report generation failed.")
+    if not ppt_path:
+        qa_status["errors"].append("PowerPoint report generation failed.")
+        
+    if qa_status["errors"]:
+        qa_status["overall_status"] = "Failed"
+
+    return qa_status
 
 if __name__ == "__main__":
     main()

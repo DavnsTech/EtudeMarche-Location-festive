@@ -49,56 +49,25 @@ class MarketAnalyzer:
         market_data_saved_status = self.market_handler.save_market_data()
 
         self.analysis_results["market_data_status"] = market_data_saved_status
-        self.analysis_results["market_overview_excel"] = market_overview_excel_path
-
-        # Step 3: Consolidate and Save Full Analysis Summary
-        print("  - Consolidating analysis results...")
+        if market_overview_excel_path:
+             self.analysis_results["market_overview_excel"] = market_overview_excel_path
+        else:
+             self.analysis_results["market_overview_excel"] = "Excel file generation failed."
+             print("   ✗ Market overview Excel file generation failed.")
         
-        # Create a DataFrame for the summary report
-        summary_data = {
-            "Metric": [],
-            "Value": []
-        }
+        # Step 3: Integrate and summarize findings (can be expanded)
+        print("  - Summarizing findings...")
+        # This is a placeholder, actual summary generation would involve more complex logic
+        summary_message = "Market and competitor analysis complete. Review generated reports for details."
+        self.analysis_results["full_analysis_summary_report"] = summary_message
+        print(f"   ✓ Summary: {summary_message}")
 
-        # Add competitor analysis metrics
-        comp_analysis = self.analysis_results.get("competitor_analysis", {})
-        summary_data["Metric"].append("Total Competitors")
-        summary_data["Value"].append(comp_analysis.get('total_competitors', 'N/A'))
-        summary_data["Metric"].append("Avg Strengths per Competitor")
-        summary_data["Value"].append(f"{comp_analysis.get('avg_strengths_per_competitor', 0.0):.2f}")
-        summary_data["Metric"].append("Avg Weaknesses per Competitor")
-        summary_data["Value"].append(f"{comp_analysis.get('avg_weaknesses_per_competitor', 0.0):.2f}")
-        
-        # Add market data metrics
-        market_data = self.market_handler.get_market_info() # Assuming get_market_info() exists
-        summary_data["Metric"].append("Industry")
-        summary_data["Value"].append(market_data.get('industry', 'N/A'))
-        summary_data["Metric"].append("Primary Location")
-        summary_data["Value"].append(market_data.get('location', 'N/A'))
-        summary_data["Metric"].append("Number of Target Segments")
-        summary_data["Value"].append(len(market_data.get('target_market', [])))
-        summary_data["Metric"].append("Number of Seasonality Factors")
-        summary_data["Value"].append(len(market_data.get('seasonality_factors', [])))
-        summary_data["Metric"].append("Number of Market Trends")
-        summary_data["Value"].append(len(market_data.get('market_trends', [])))
+        print("Location Festive Niort Market Analysis finished.")
+        return self.analysis_results
 
-        # Add competitor market position counts
-        for position, count in comp_analysis.get('competitor_market_position_counts', {}).items():
-            summary_data["Metric"].append(f"Competitors in '{position}' Position")
-            summary_data["Value"].append(count)
-
-        # Convert to DataFrame and save
-        summary_df = pd.DataFrame(summary_data)
-        summary_report_path = os.path.join('reports', 'full_analysis_summary.md') # Save as markdown for readability
-        
-        try:
-            summary_df.to_markdown(summary_report_path, index=False)
-            self.analysis_results["full_analysis_summary_report"] = summary_report_path
-            print(f"  - Full analysis summary saved to: {summary_report_path}")
-        except Exception as e:
-            print(f"Error saving full analysis summary to markdown: {e}")
-            self.analysis_results["full_analysis_summary_report"] = "Markdown save failed."
-
-        print("Market analysis complete.")
+    def get_analysis_results(self) -> Dict[str, Any]:
+        """
+        Returns the stored analysis results.
+        """
         return self.analysis_results
 

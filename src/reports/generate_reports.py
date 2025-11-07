@@ -48,11 +48,11 @@ def generate_all_reports() -> Tuple[Optional[str], Optional[str]]:
             print("Error: Could not import CompetitorDataCollector. Ensure the data module is correctly structured.")
             return None, None
         except Exception as e:
-            print(f"An unexpected error occurred while creating competitor template: {e}")
+            print(f"An unexpected error occurred while trying to create competitor template: {e}")
             return None, None
 
     if not os.path.exists(market_data_file):
-        print(f"Warning: {market_data_file} not found. Attempting to create market data excel.")
+        print(f"Warning: {market_data_file} not found. Attempting to create market overview.")
         try:
             from ..data.market_data import MarketDataHandler
             handler = MarketDataHandler()
@@ -64,33 +64,30 @@ def generate_all_reports() -> Tuple[Optional[str], Optional[str]]:
             print("Error: Could not import MarketDataHandler. Ensure the data module is correctly structured.")
             return None, None
         except Exception as e:
-            print(f"An unexpected error occurred while creating market data excel: {e}")
+            print(f"An unexpected error occurred while trying to create market overview: {e}")
             return None, None
 
-    # Generate Excel report
-    excel_report_path: Optional[str] = None
-    print("  - Generating Excel report...")
-    try:
-        excel_report = MarketStudyExcelReport(
-            competitor_data_file=competitor_data_file,
-            market_data_file=market_data_file
-        )
-        excel_report_path = excel_report.generate_report()
-    except Exception as e:
-        print(f"Error during Excel report generation: {e}")
+    excel_report_path = None
+    ppt_report_path = None
 
-    # Generate PowerPoint report
-    ppt_report_path: Optional[str] = None
-    print("  - Generating PowerPoint report...")
+    # Generate Excel Report
     try:
-        ppt_report = MarketStudyPresentation(
-            competitor_data_file=competitor_data_file,
-            market_data_file=market_data_file
-        )
-        ppt_report_path = ppt_report.generate_presentation()
+        excel_generator = MarketStudyExcelReport(competitor_data_file=competitor_data_file, market_data_file=market_data_file)
+        excel_report_path = excel_generator.generate_report()
     except Exception as e:
-        print(f"Error during PowerPoint report generation: {e}")
+        print(f"Error generating Excel report: {e}")
 
-    print("Report generation process finished.")
+    # Generate PowerPoint Report
+    try:
+        ppt_generator = MarketStudyPresentation(competitor_data_file=competitor_data_file, market_data_file=market_data_file)
+        ppt_report_path = ppt_generator.generate_presentation()
+    except Exception as e:
+        print(f"Error generating PowerPoint report: {e}")
+
+    if excel_report_path or ppt_report_path:
+        print("Report generation process completed.")
+    else:
+        print("All report generation attempts failed.")
+
     return excel_report_path, ppt_report_path
 
