@@ -50,11 +50,7 @@ def generate_all_reports():
         competitor_data_file=competitor_data_file,
         market_data_file=market_data_file
     )
-    excel_filename = excel_report.save_workbook()
-    if excel_filename:
-        print(f"  ✓ Excel report generated: {excel_filename}")
-    else:
-        print("  ✗ Excel report generation failed.")
+    excel_filename = excel_report.generate_report()
     
     # Generate PowerPoint presentation
     print("  - Generating PowerPoint presentation...")
@@ -62,37 +58,6 @@ def generate_all_reports():
         competitor_data_file=competitor_data_file,
         market_data_file=market_data_file
     )
-    ppt_filename = ppt_report.save_presentation()
-    if ppt_filename:
-        print(f"  ✓ PowerPoint presentation generated: {ppt_filename}")
-    else:
-        print("  ✗ PowerPoint presentation generation failed.")
+    ppt_filename = ppt_report.create_presentation()
     
     return excel_filename, ppt_filename
-
-if __name__ == "__main__":
-    # Ensure data files are available before generating reports
-    # This part is crucial for the main execution flow of generate_reports itself
-    if not os.path.exists('data'):
-        os.makedirs('data')
-        
-    if not os.path.exists('data/competitor_research.xlsx'):
-        from ..data.competitor_data import CompetitorDataCollector
-        collector = CompetitorDataCollector()
-        collector.create_competitor_template()
-        print("Created dummy competitor_research.xlsx for testing.")
-        
-    if not os.path.exists('data/market_overview.xlsx'):
-        from ..data.market_data import MarketDataHandler
-        handler = MarketDataHandler()
-        handler.create_market_summary_excel()
-        print("Created dummy market_overview.xlsx for testing.")
-
-    excel_file, ppt_file = generate_all_reports()
-    
-    if excel_file and ppt_file:
-        print("\nAll reports generated successfully!")
-        print(f"  - Excel: {excel_file}")
-        print(f"  - PowerPoint: {ppt_file}")
-    else:
-        print("\nReport generation process encountered errors.")

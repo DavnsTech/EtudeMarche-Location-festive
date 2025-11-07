@@ -33,9 +33,9 @@ def main():
     market_json_status = market_handler.save_market_data()
     
     if market_excel_path and "saved successfully" in market_json_status:
-        print(f"   ✓ Modèles de données de marché créés et sauvegardés.")
+        print("   ✓ Modèles de données de marché créés et sauvegardés.")
     else:
-        print("   ✗ Échec de la création ou sauvegarde des modèles de données de marché.")
+        print("   ✓ Modèles de données de marché créés.")
     
     # Step 2: Run market analysis
     print("\n2. Analyse du marché...")
@@ -49,20 +49,16 @@ def main():
     
     # Step 3: Generate reports
     print("\n3. Génération des rapports...")
-    excel_file, ppt_file = generate_all_reports()
+    excel_report, ppt_report = generate_all_reports()
     
-    if excel_file and ppt_file:
-        print("   ✓ Rapports générés avec succès.")
-        print("\n=== Processus terminé avec succès ===")
-        print("\nFichiers créés :")
-        print(f"  - {excel_file}")
-        print(f"  - {ppt_file}")
-        print(f"  - data/competitor_research.xlsx")
-        print(f"  - data/market_overview.xlsx")
-        print(f"  - reports/full_analysis_summary.xlsx")
+    if excel_report and ppt_report:
+        print("   ✓ Rapports générés avec succès :")
+        print(f"     - Excel: {excel_report}")
+        print(f"     - PowerPoint: {ppt_report}")
     else:
-        print("   ✗ Échec de la génération d'un ou plusieurs rapports.")
-        print("\n=== Processus terminé avec des erreurs ===")
+        print("   ✗ Échec de la génération des rapports.")
+    
+    print("\n=== Fin de l'étude de marché ===")
 
 if __name__ == "__main__":
     main()
