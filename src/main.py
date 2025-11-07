@@ -47,36 +47,25 @@ def main():
     if market_excel_path and "saved successfully" in market_json_status:
         print(f"   ✓ Modèles de données de marché créés et sauvegardés (Excel: {market_excel_path}, JSON status: {market_json_status}).")
     else:
-        print(f"   ✓ Modèles de données de marché créés (Excel: {market_excel_path}, JSON status: {market_json_status}).")
+        print(f"   ✗ Échec de la création/sauvegarde des modèles de données de marché.")
 
-    # Step 2: Run market and competitor analysis
-    print("\n2. Analyse du marché et de la concurrence...")
+    # Step 2: Run full market analysis
+    print("\n2. Lancement de l'analyse complète du marché...")
     analyzer = MarketAnalyzer()
-    analysis_results = analyzer.run_full_analysis() # Changed to capture results
-
-    if analysis_results:
-        print("   ✓ Analyse complète terminée.")
-        # You can print or process analysis_results here if needed
-        # print("\nAnalyse Results Summary:")
-        # print(json.dumps(analysis_results, indent=2))
-    else:
-        print("   ✗ L'analyse complète a échoué.")
+    analysis_results = analyzer.run_full_analysis()
+    print("   ✓ Analyse du marché terminée.")
 
     # Step 3: Generate reports
     print("\n3. Génération des rapports...")
     excel_report_path, ppt_report_path = generate_all_reports()
-
-    if excel_report_path:
-        print(f"   ✓ Rapport Excel généré : {excel_report_path}")
+    if excel_report_path and ppt_report_path:
+        print(f"   ✓ Rapports générés avec succès !")
+        print(f"     - Excel: {excel_report_path}")
+        print(f"     - PowerPoint: {ppt_report_path}")
     else:
-        print("   ✗ Échec de la génération du rapport Excel.")
+        print("   ✗ Échec de la génération des rapports.")
 
-    if ppt_report_path:
-        print(f"   ✓ Rapport PowerPoint généré : {ppt_report_path}")
-    else:
-        print("   ✗ Échec de la génération du rapport PowerPoint.")
-
-    print("\n=== Étude de marché terminée. ===")
+    print("\n=== Étude de Marché Terminée ===")
 
 if __name__ == "__main__":
     main()

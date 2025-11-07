@@ -51,10 +51,10 @@ class MarketDataHandler:
 
     def create_market_summary_excel(self) -> Optional[str]:
         """
-        Creates an Excel file summarizing key market information.
+        Creates a summary Excel file with market information.
 
         Returns:
-            Optional[str]: The path to the created Excel file if successful, None otherwise.
+            Optional[str]: Path to the created Excel file or None if failed.
         """
         if not os.path.exists(self.data_dir):
             try:
@@ -64,78 +64,50 @@ class MarketDataHandler:
                 print(f"Error creating directory {self.data_dir}: {e}")
                 return None
 
-        # Check if Excel file already exists
-        if os.path.exists(self.market_overview_excel_path):
-            print(f"Market overview Excel file '{self.market_overview_excel_path}' already exists. Skipping creation.")
-            return self.market_overview_excel_path
-            
-        # Convert dictionary to a list of dictionaries for easier DataFrame creation
-        # Each key-value pair will become a row in the Excel sheet
-        data_for_excel = []
-        for key, value in self.market_info.items():
-            data_for_excel.append({'Category': key.replace('_', ' ').title(), 'Details': value})
-
-        df = pd.DataFrame(data_for_excel)
-
         try:
+            # Create a DataFrame for market overview
+            overview_data = {
+                "Category": [
+                    "Industry",
+                    "Location",
+                    "Target Market",
+                    "Seasonality Factors",
+                    "Market Trends",
+                    "Opportunities",
+                    "Challenges"
+                ],
+                "Details": [
+                    self.market_info["industry"],
+                    self.market_info["location"],
+                    "\n".join(self.market_info["target_market"]),
+                    "\n".join(self.market_info["seasonality_factors"]),
+                    "\n".join(self.market_info["market_trends"]),
+                    "\n".join(self.market_info["potential_opportunities"]),
+                    "\n".join(self.market_info["challenges"])
+                ]
+            }
+
+            df = pd.DataFrame(overview_data)
             df.to_excel(self.market_overview_excel_path, index=False)
-            print(f"Market overview Excel file created at: {self.market_overview_excel_path}")
+            print(f"Market overview Excel created at: {self.market_overview_excel_path}")
             return self.market_overview_excel_path
         except Exception as e:
-            print(f"Error saving market overview Excel to {self.market_overview_excel_path}: {e}")
+            print(f"Error creating market overview Excel: {e}")
             return None
 
     def save_market_data(self) -> str:
         """
-        Saves the market information dictionary to a JSON file.
+        Saves market data to a JSON file.
 
         Returns:
-            str: A status message indicating the success or failure of the save operation.
+            str: Status message indicating success or failure.
         """
-        if not os.path.exists(self.data_dir):
-            try:
+        try:
+            if not os.path.exists(self.data_dir):
                 os.makedirs(self.data_dir)
-                print(f"Created directory: {self.data_dir}")
-            except OSError as e:
-                print(f"Error creating directory {self.data_dir}: {e}")
-                return "Failed to save: Could not create data directory."
 
-        try:
             with open(self.market_data_json_path, 'w', encoding='utf-8') as f:
-                json.dump(self.market_info, f, indent=4, ensure_ascii=False)
-            print(f"Market data saved to '{self.market_data_json_path}'.")
-            return "Market data saved successfully."
+                json.dump(self.market_info, f, ensure_ascii=False, indent=4)
+            return f"Market data saved successfully to {self.market_data_json_path}"
         except Exception as e:
-            return f"Error saving market data to {self.market_data_json_path}: {e}"
-
-    def load_market_data(self) -> Optional[Dict[str, Any]]:
-        """
-        Loads market data from the JSON file.
-
-        Returns:
-            Optional[Dict[str, Any]]: The loaded market data, or None if the file is not found or an error occurs.
-        """
-        if not os.path.exists(self.market_data_json_path):
-            print(f"Market data file '{self.market_data_json_path}' not found.")
-            return None
-        try:
-            with open(self.market_data_json_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            print(f"Market data loaded from '{self.market_data_json_path}'.")
-            return data
-        except FileNotFoundError:
-            print(f"Error: Market data file '{self.market_data_json_path}' not found.")
-            return None
-        except json.JSONDecodeError:
-            print(f"Error: Could not decode JSON from '{self.market_data_json_path}'. File might be corrupted.")
-            return None
-        except Exception as e:
-            print(f"Error loading market data from {self.market_data_json_path}: {e}")
-            return None
-
-    def get_market_info(self) -> Dict[str, Any]:
-        """
-        Returns the current market information dictionary.
-        """
-        return self.market_info
-
+            return f"Error saving market data: {e}"

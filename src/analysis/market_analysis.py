@@ -48,39 +48,18 @@ class MarketAnalyzer:
                 os.makedirs('data')
                 print("   Created 'data' directory.")
             except OSError as e:
-                print(f"   Error creating 'data' directory: {e}")
-                # Depending on severity, you might want to exit or handle this more robustly
-                print("   ✗ Failed to prepare market data due to directory error.")
-                return {} # Return empty if critical directory creation fails
+                print(f"   Error creating directory 'data': {e}")
+                self.analysis_results["market_data_status"] = "Failed to create data directory"
+                return self.analysis_results
 
-        market_overview_excel_path = self.market_handler.create_market_summary_excel()
-        market_data_saved_status = self.market_handler.save_market_data()
+        # Create market summary Excel
+        market_excel_path = self.market_handler.create_market_summary_excel()
+        market_json_status = self.market_handler.save_market_data()
 
-        market_data_info = {
-            "market_overview_excel": market_overview_excel_path,
-            "market_data_json_status": market_data_saved_status
-        }
-        self.analysis_results["market_data_preparation"] = market_data_info
+        self.analysis_results["market_data_excel"] = market_excel_path
+        self.analysis_results["market_data_json"] = market_json_status
 
-        if market_overview_excel_path and "saved successfully" in market_data_saved_status:
-            print("   ✓ Market overview Excel and JSON data prepared.")
-        else:
-            print("   ✗ Market overview Excel or JSON data preparation incomplete.")
+        print("   ✓ Market data prepared successfully.")
+        print("✓ Full market analysis completed.")
 
-        # Step 3: Integrate findings (example: combining competitor insights with market opportunities)
-        print("  - Integrating analysis findings...")
-        combined_insights = {
-            "competitor_summary": competitor_results,
-            "market_overview": self.market_handler.get_market_info(), # Assuming MarketDataHandler has this method
-            "potential_opportunities": self.market_handler.get_market_info().get("potential_opportunities", [])
-        }
-        self.analysis_results["combined_insights"] = combined_insights
-        print("   ✓ Analysis findings integrated.")
-
-        print("Location Festive Niort Market Analysis completed.")
         return self.analysis_results
-
-    # Placeholder for potential future methods
-    # def analyze_market_demand(self): ...
-    # def identify_niche_opportunities(self): ...
-
