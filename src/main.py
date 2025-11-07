@@ -6,6 +6,7 @@ import os
 from data.competitor_data import CompetitorDataCollector
 from data.market_data import MarketDataHandler
 from analysis.market_analysis import MarketAnalyzer
+from analysis.financial_analysis import FinancialAnalyzer
 from reports.generate_reports import generate_all_reports
 import json
 
@@ -47,25 +48,44 @@ def main():
     if market_excel_path and "saved successfully" in market_json_status:
         print(f"   ✓ Modèles de données de marché créés et sauvegardés (Excel: {market_excel_path}, JSON status: {market_json_status}).")
     else:
-        print(f"   ✗ Échec de la création/sauvegarde des modèles de données de marché.")
+        print(f"   ✗ Échec de la création des modèles de données de marché.")
 
-    # Step 2: Run full market analysis
-    print("\n2. Lancement de l'analyse complète du marché...")
-    analyzer = MarketAnalyzer()
-    analysis_results = analyzer.run_full_analysis()
-    print("   ✓ Analyse du marché terminée.")
+    # Step 2: Run market analysis
+    print("\n2. Exécution de l'analyse de marché...")
+    market_analyzer = MarketAnalyzer()
+    market_analysis_results = market_analyzer.run_full_analysis()
+    print("   ✓ Analyse de marché terminée.")
 
-    # Step 3: Generate reports
-    print("\n3. Génération des rapports...")
+    # Step 3: Run financial analysis
+    print("\n3. Exécution de l'analyse financière...")
+    financial_analyzer = FinancialAnalyzer()
+    financial_analysis_results = financial_analyzer.run_full_financial_analysis()
+    print("   ✓ Analyse financière terminée.")
+    
+    # Generate executive summary
+    executive_summary = financial_analyzer.generate_executive_summary(financial_analysis_results)
+    print("\n" + executive_summary)
+
+    # Step 4: Generate reports
+    print("\n4. Génération des rapports...")
     excel_report_path, ppt_report_path = generate_all_reports()
+    
     if excel_report_path and ppt_report_path:
-        print(f"   ✓ Rapports générés avec succès !")
-        print(f"     - Excel: {excel_report_path}")
-        print(f"     - PowerPoint: {ppt_report_path}")
+        print(f"   ✓ Rapport Excel généré : {excel_report_path}")
+        print(f"   ✓ Présentation PowerPoint générée : {ppt_report_path}")
     else:
         print("   ✗ Échec de la génération des rapports.")
+        
+    # Step 5: Save financial analysis results
+    print("\n5. Sauvegarde des résultats d'analyse financière...")
+    try:
+        with open('reports/financial_analysis.json', 'w') as f:
+            json.dump(financial_analysis_results, f, indent=2)
+        print("   ✓ Résultats d'analyse financière sauvegardés.")
+    except Exception as e:
+        print(f"   ✗ Échec de la sauvegarde des résultats d'analyse financière : {e}")
 
-    print("\n=== Étude de Marché Terminée ===")
+    print("\n=== Étude de marché terminée ===")
 
 if __name__ == "__main__":
     main()
