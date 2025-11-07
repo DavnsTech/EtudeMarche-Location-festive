@@ -50,96 +50,66 @@ class CompetitorAnalysis:
             return {
                 'total_competitors': 0,
                 'avg_strengths_per_competitor': 0,
-                'avg_weaknesses_per_competitor': 0,
-                'most_common_specializations': [],
-                'market_position_distribution': {}
+                'top_strengths': [],
+                'market_leaders': []
             }
 
-        results: Dict[str, Any] = {}
-        results['total_competitors'] = len(self.df)
+        # Count non-empty entries for strengths
+        strength_counts = self.df['Strengths'].str.split(',').str.len().fillna(0)
+        avg_strengths = strength_counts.mean() if not strength_counts.empty else 0
+        
+        # Get top 5 strengths mentioned across competitors
+        all_strengths = []
+        for strengths in self.df['Strengths'].dropna():
+            all_strengths.extend([s.strip() for s in strengths.split(',')])
+        
+        top_strengths = pd.Series(all_strengths).value_counts().head(5).to_dict()
+        
+        # Identify market leaders based on market position
+        market_leaders = self.df['Market Position'].value_counts().head(3).to_dict()
+        
+        return {
+            'total_competitors': len(self.df),
+            'avg_strengths_per_competitor': round(avg_strengths, 2),
+            'top_strengths': top_strengths,
+            'market_leaders': market_leaders
+        }
 
-        # Calculate average number of strengths/weaknesses listed (simple count)
-        # Assuming strengths/weaknesses are comma-separated strings
-        results['avg_strengths_per_competitor'] = self.df['Strengths'].str.split(',').str.len().mean() if 'Strengths' in self.df.columns else 0
-        results['avg_weaknesses_per_competitor'] = self.df['Weaknesses'].str.split(',').str.len().mean() if 'Weaknesses' in self.df.columns else 0
-
-        # Most common specializations
-        if 'Specialization' in self.df.columns:
-            # Handle potential NaN values and ensure string type
-            specializations = self.df['Specialization'].dropna().astype(str).str.lower().str.split(',')
-            all_specializations = [item.strip() for sublist in specializations for item in sublist if item.strip()]
-            if all_specializations:
-                from collections import Counter
-                spec_counts = Counter(all_specializations)
-                results['most_common_specializations'] = spec_counts.most_common(5) # Top 5
-            else:
-                results['most_common_specializations'] = []
-        else:
-            results['most_common_specializations'] = []
-
-        # Market position distribution
-        if 'Market Position' in self.df.columns:
-            # Handle potential NaN values and ensure string type
-            market_position_counts = self.df['Market Position'].dropna().astype(str).str.lower().value_counts()
-            results['market_position_distribution'] = market_position_counts.to_dict()
-        else:
-            results['market_position_distribution'] = {}
-
-        print("Competitor strengths analysis completed.")
-        return results
-
-    def generate_comparison_chart(self, output_dir: str = 'reports') -> Optional[str]:
+    def generate_comparison_chart(self) -> Optional[str]:
         """
-        Generates a bar chart comparing competitors based on a selected metric (e.g., number of strengths or pricing).
-        This is a simplified example. A more robust analysis would involve feature engineering.
-
-        Args:
-            output_dir (str): Directory to save the chart.
+        Generates a comparison chart of competitors by pricing range.
 
         Returns:
-            Optional[str]: Path to the saved chart image, or None if generation failed.
+            Optional[str]: Path to the generated chart or None if failed.
         """
         if self.df is None or self.df.empty:
             print("No competitor data available for chart generation.")
             return None
 
-        if not os.path.exists(output_dir):
-            try:
-                os.makedirs(output_dir)
-                print(f"Created directory: {output_dir}")
-            except OSError as e:
-                print(f"Error creating directory {output_dir}: {e}")
-                return None
-
-        plt.figure(figsize=(12, 8))
-        sns.set_theme(style="whitegrid")
-
-        # Example: Bar chart of number of listed strengths
-        if 'Strengths' in self.df.columns:
-            strengths_count = self.df['Strengths'].str.split(',').str.len().fillna(0)
-            plot_df = pd.DataFrame({
-                'Competitor': self.df['Competitor'].str.strip(),
-                'Number of Strengths': strengths_count
-            })
-            plot_df = plot_df.sort_values('Number of Strengths', ascending=False)
-
-            ax = sns.barplot(x='Number of Strengths', y='Competitor', data=plot_df, palette='viridis')
-            ax.set_title('Number of Strengths Listed by Competitor', fontsize=16, fontweight='bold')
-            ax.set_xlabel("Number of Strengths", fontsize=12)
-            ax.set_ylabel("Competitor", fontsize=12)
-            plt.tight_layout()
-
-            chart_filename = os.path.join(output_dir, 'competitor_strengths_comparison.png')
-            try:
-                plt.savefig(chart_filename)
-                print(f"Competitor strengths comparison chart saved to '{chart_filename}'.")
-                plt.close() # Close the plot to free memory
-                return chart_filename
-            except Exception as e:
-                print(f"Error saving chart to {chart_filename}: {e}")
-                plt.close()
-                return None
-        else:
-            print("No 'Strengths' column found for chart generation.")
+        # Filter out rows without pricing data
+        valid_df = self.df[self.df['Pricing Range'].notna() & (self.df['Pricing Range'] != '')]
+        
+        if valid_df.empty:
+            print("No valid pricing data available for chart generation.")
             return None
 
+        try:
+            # Create bar chart of competitors by pricing range
+            plt.figure(figsize=(12, 6))
+            sns.barplot(x='Competitor', y='Pricing Range', data=valid_df)
+            plt.title('Competitor Pricing Range Comparison')
+            plt.xlabel('Competitor')
+            plt.ylabel('Pricing Range')
+            plt.xticks(rotation=45, ha='right')
+            
+            # Save chart
+            chart_path = 'reports/competitor_pricing_comparison.png'
+            os.makedirs('reports', exist_ok=True)
+            plt.tight_layout()
+            plt.savefig(chart_path)
+            plt.close()
+            
+            return chart_path
+        except Exception as e:
+            print(f"Error generating competitor comparison chart: {e}")
+            return None
