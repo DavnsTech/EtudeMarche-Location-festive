@@ -54,56 +54,35 @@ class MarketAnalyzer:
         # Add competitor analysis metrics
         if competitor_results:
             summary_data["Metric"].extend([
-                "Total Competitors Identified",
-                "Avg Strengths per Competitor",
-                "Avg Weaknesses per Competitor"
+                "Total Competitors Analyzed",
+                "Average Strengths per Competitor",
+                "Average Weaknesses per Competitor"
             ])
             summary_data["Value"].extend([
-                competitor_results.get('total_competitors', 'N/A'),
-                f"{competitor_results.get('avg_strengths_per_competitor', 0):.2f}" if isinstance(competitor_results.get('avg_strengths_per_competitor'), (int, float)) else 'N/A',
-                f"{competitor_results.get('avg_weaknesses_per_competitor', 0):.2f}" if isinstance(competitor_results.get('avg_weaknesses_per_competitor'), (int, float)) else 'N/A'
+                competitor_results['total_competitors'],
+                round(competitor_results['avg_strengths_per_competitor'], 2),
+                round(competitor_results['avg_weaknesses_per_competitor'], 2)
             ])
             
             # Add market position counts
-            for position, count in competitor_results.get('competitor_market_position_counts', {}).items():
-                summary_data["Metric"].append(f"Competitors in '{position}' Position")
+            for position, count in competitor_results['competitor_market_position_counts'].items():
+                summary_data["Metric"].append(f"Competitors with '{position}' Position")
                 summary_data["Value"].append(count)
-        else:
-            summary_data["Metric"].extend(["Competitor Analysis Status"])
-            summary_data["Value"].extend(["No data found"])
 
-        # Add market data status
-        summary_data["Metric"].append("Market Data Status")
-        summary_data["Value"].append(self.analysis_results.get("market_data_status", "Not processed"))
+        # Create summary DataFrame
+        summary_df = pd.DataFrame(summary_data)
         
-        # Add file paths
-        summary_data["Metric"].append("Market Overview Excel")
-        summary_data["Value"].append(self.analysis_results.get("market_overview_excel", "Not generated"))
-        summary_data["Metric"].append("Competitor Comparison Chart")
-        summary_data["Value"].append(self.analysis_results.get("competitor_comparison_chart", "Not generated"))
-
-
-        results_df = pd.DataFrame(summary_data)
-        
-        # Save to Excel report
-        output_dir = 'reports'
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        summary_filepath = os.path.join(output_dir, 'full_analysis_summary.xlsx')
-        
+        # Save summary to Excel
+        summary_excel_path = 'reports/full_analysis_summary.xlsx'
+        if not os.path.exists('reports'):
+            os.makedirs('reports')
+            
         try:
-            results_df.to_excel(summary_filepath, index=False)
-            print(f"  ✓ Full analysis summary saved to: {summary_filepath}")
-            self.analysis_results["full_analysis_summary_report"] = summary_filepath
+            summary_df.to_excel(summary_excel_path, index=False)
+            print(f"Full analysis summary saved to {summary_excel_path}")
+            self.analysis_results["full_analysis_summary_report"] = summary_excel_path
         except Exception as e:
-            print(f"Error saving full analysis summary to {summary_filepath}: {e}")
-            self.analysis_results["full_analysis_summary_report"] = f"Failed to save: {e}"
+            print(f"Error saving analysis summary: {e}")
+            self.analysis_results["full_analysis_summary_report"] = None
 
-        print("Location Festive Niort Market Analysis complete.")
         return self.analysis_results
-
-if __name__ == "__main__":
-    analyzer = MarketAnalyzer()
-    results = analyzer.run_full_analysis()
-    print("\nAnalysis Results Dictionary:")
-    print(results)

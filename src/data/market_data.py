@@ -55,44 +55,39 @@ class MarketDataHandler:
                 ", ".join(self.market_info["market_trends"])
             ]
         }
-        df_overview = pd.DataFrame(overview_data)
 
-        # Target market breakdown (simplified for this example)
-        target_data = {
-            "Segment": self.market_info["target_market"],
-            "Estimated Market Share": [""] * len(self.market_info["target_market"]), # Placeholder
-            "Notes": [""] * len(self.market_info["target_market"]) # Placeholder
-        }
-        df_target = pd.DataFrame(target_data)
-        
+        df = pd.DataFrame(overview_data)
         try:
-            with pd.ExcelWriter(self.market_overview_excel_path) as writer:
-                df_overview.to_excel(writer, sheet_name='Market Overview', index=False)
-                df_target.to_excel(writer, sheet_name='Target Segments', index=False)
-            print(f"Market overview Excel created at: {self.market_overview_excel_path}")
+            df.to_excel(self.market_overview_excel_path, index=False)
+            print(f"Market overview Excel created at {self.market_overview_excel_path}")
             return self.market_overview_excel_path
         except Exception as e:
             print(f"Error creating market overview Excel: {e}")
             return None
 
     def save_market_data(self):
-        """Save market data dictionary to a JSON file."""
+        """Save market data to JSON."""
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
-            
+        
         try:
-            with open(self.market_data_json_path, 'w') as f:
-                json.dump(self.market_info, f, indent=2)
+            with open(self.market_data_json_path, 'w', encoding='utf-8') as f:
+                json.dump(self.market_info, f, ensure_ascii=False, indent=4)
             print(f"Market data saved to {self.market_data_json_path}")
-            return "Market data saved successfully."
+            return f"Data saved successfully to {self.market_data_json_path}"
         except Exception as e:
-            print(f"Error saving market data to JSON: {e}")
-            return f"Failed to save market data: {e}"
+            print(f"Error saving market data: {e}")
+            return None
 
-if __name__ == "__main__":
-    handler = MarketDataHandler()
-    excel_path = handler.create_market_summary_excel()
-    json_status = handler.save_market_data()
-    
-    print(f"Excel path: {excel_path}")
-    print(f"JSON status: {json_status}")
+    def load_market_data(self):
+        """Load market data from JSON."""
+        try:
+            if os.path.exists(self.market_data_json_path):
+                with open(self.market_data_json_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            else:
+                print(f"Market data file {self.market_data_json_path} not found.")
+                return {}
+        except Exception as e:
+            print(f"Error loading market data: {e}")
+            return {}
