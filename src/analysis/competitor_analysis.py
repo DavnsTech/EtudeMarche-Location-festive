@@ -51,48 +51,56 @@ class CompetitorAnalysis:
                 'total_competitors': 0,
                 'avg_strengths_per_competitor': 0,
                 'avg_weaknesses_per_competitor': 0,
-                'competitors_by_specialization': {},
+                'most_common_specializations': [],
                 'market_position_distribution': {}
             }
 
-        analysis_results: Dict[str, Any] = {}
+        results: Dict[str, Any] = {}
+        results['total_competitors'] = len(self.df)
 
-        # Total number of competitors
-        analysis_results['total_competitors'] = len(self.df)
+        # Calculate average number of strengths/weaknesses listed (simple count)
+        # Assuming strengths/weaknesses are comma-separated strings
+        results['avg_strengths_per_competitor'] = self.df['Strengths'].str.split(',').str.len().mean() if 'Strengths' in self.df.columns else 0
+        results['avg_weaknesses_per_competitor'] = self.df['Weaknesses'].str.split(',').str.len().mean() if 'Weaknesses' in self.df.columns else 0
 
-        # Average number of strengths and weaknesses listed per competitor
-        # Assuming 'Strengths' and 'Weaknesses' columns contain comma-separated values or are to be interpreted qualitatively
-        # For simplicity, we'll count non-empty entries. A more sophisticated analysis could parse comma-separated values.
-        analysis_results['avg_strengths_per_competitor'] = self.df['Strengths'].astype(str).apply(lambda x: len(x.split(',')) if x and x.strip() else 0).mean()
-        analysis_results['avg_weaknesses_per_competitor'] = self.df['Weaknesses'].astype(str).apply(lambda x: len(x.split(',')) if x and x.strip() else 0).mean()
-
-        # Competitors by specialization
+        # Most common specializations
         if 'Specialization' in self.df.columns:
-            analysis_results['competitors_by_specialization'] = self.df['Specialization'].value_counts().to_dict()
+            # Handle potential NaN values and ensure string type
+            specializations = self.df['Specialization'].dropna().astype(str).str.lower().str.split(',')
+            all_specializations = [item.strip() for sublist in specializations for item in sublist if item.strip()]
+            if all_specializations:
+                from collections import Counter
+                spec_counts = Counter(all_specializations)
+                results['most_common_specializations'] = spec_counts.most_common(5) # Top 5
+            else:
+                results['most_common_specializations'] = []
         else:
-            analysis_results['competitors_by_specialization'] = {}
+            results['most_common_specializations'] = []
 
         # Market position distribution
         if 'Market Position' in self.df.columns:
-            analysis_results['market_position_distribution'] = self.df['Market Position'].value_counts().to_dict()
+            # Handle potential NaN values and ensure string type
+            market_position_counts = self.df['Market Position'].dropna().astype(str).str.lower().value_counts()
+            results['market_position_distribution'] = market_position_counts.to_dict()
         else:
-            analysis_results['market_position_distribution'] = {}
-            
+            results['market_position_distribution'] = {}
+
         print("Competitor strengths analysis completed.")
-        return analysis_results
+        return results
 
     def generate_comparison_chart(self, output_dir: str = 'reports') -> Optional[str]:
         """
-        Generates a bar chart comparing competitors based on a selected metric (e.g., number of strengths).
+        Generates a bar chart comparing competitors based on a selected metric (e.g., number of strengths or pricing).
+        This is a simplified example. A more robust analysis would involve feature engineering.
 
         Args:
             output_dir (str): Directory to save the chart.
 
         Returns:
-            Optional[str]: Path to the saved chart file, or None if generation failed.
+            Optional[str]: Path to the saved chart image, or None if generation failed.
         """
         if self.df is None or self.df.empty:
-            print("No competitor data available to generate comparison chart.")
+            print("No competitor data available for chart generation.")
             return None
 
         if not os.path.exists(output_dir):
@@ -103,29 +111,35 @@ class CompetitorAnalysis:
                 print(f"Error creating directory {output_dir}: {e}")
                 return None
 
-        chart_filename = os.path.join(output_dir, 'competitor_strength_comparison.png')
+        plt.figure(figsize=(12, 8))
+        sns.set_theme(style="whitegrid")
 
-        try:
-            # Prepare data for chart: Count strengths for each competitor
-            # This assumes 'Strengths' column contains comma-separated strengths or is qualitative.
-            # We'll count non-empty entries for simplicity.
-            df_chart = self.df.copy()
-            df_chart['Strength_Count'] = df_chart['Strengths'].astype(str).apply(lambda x: len(x.split(',')) if x and x.strip() else 0)
-            
-            # Sort by strength count for better visualization
-            df_chart = df_chart.sort_values('Strength_Count', ascending=False)
+        # Example: Bar chart of number of listed strengths
+        if 'Strengths' in self.df.columns:
+            strengths_count = self.df['Strengths'].str.split(',').str.len().fillna(0)
+            plot_df = pd.DataFrame({
+                'Competitor': self.df['Competitor'].str.strip(),
+                'Number of Strengths': strengths_count
+            })
+            plot_df = plot_df.sort_values('Number of Strengths', ascending=False)
 
-            plt.figure(figsize=(12, 8))
-            sns.barplot(x='Strength_Count', y='Competitor', data=df_chart, palette='viridis')
-            plt.title('Number of Strengths Listed Per Competitor', fontsize=16)
-            plt.xlabel('Number of Strengths', fontsize=12)
-            plt.ylabel('Competitor', fontsize=12)
+            ax = sns.barplot(x='Number of Strengths', y='Competitor', data=plot_df, palette='viridis')
+            ax.set_title('Number of Strengths Listed by Competitor', fontsize=16, fontweight='bold')
+            ax.set_xlabel("Number of Strengths", fontsize=12)
+            ax.set_ylabel("Competitor", fontsize=12)
             plt.tight_layout()
-            plt.savefig(chart_filename)
-            plt.close()
-            print(f"Competitor comparison chart saved to: {chart_filename}")
-            return chart_filename
-        except Exception as e:
-            print(f"Error generating competitor comparison chart: {e}")
+
+            chart_filename = os.path.join(output_dir, 'competitor_strengths_comparison.png')
+            try:
+                plt.savefig(chart_filename)
+                print(f"Competitor strengths comparison chart saved to '{chart_filename}'.")
+                plt.close() # Close the plot to free memory
+                return chart_filename
+            except Exception as e:
+                print(f"Error saving chart to {chart_filename}: {e}")
+                plt.close()
+                return None
+        else:
+            print("No 'Strengths' column found for chart generation.")
             return None
 

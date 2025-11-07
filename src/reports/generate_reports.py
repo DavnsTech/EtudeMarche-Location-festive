@@ -50,7 +50,7 @@ def generate_all_reports() -> Tuple[Optional[str], Optional[str]]:
         except Exception as e:
             print(f"An unexpected error occurred while trying to create competitor template: {e}")
             return None, None
-
+            
     if not os.path.exists(market_data_file):
         print(f"Warning: {market_data_file} not found. Attempting to create market overview.")
         try:
@@ -67,27 +67,27 @@ def generate_all_reports() -> Tuple[Optional[str], Optional[str]]:
             print(f"An unexpected error occurred while trying to create market overview: {e}")
             return None, None
 
-    excel_report_path = None
-    ppt_report_path = None
-
     # Generate Excel Report
-    try:
-        excel_generator = MarketStudyExcelReport(competitor_data_file=competitor_data_file, market_data_file=market_data_file)
-        excel_report_path = excel_generator.generate_report()
-    except Exception as e:
-        print(f"Error generating Excel report: {e}")
-
+    excel_reporter = MarketStudyExcelReport(competitor_data_file, market_data_file)
+    excel_report_path = excel_reporter.generate_full_report()
+    
     # Generate PowerPoint Report
+    # Note: PowerPoint generator needs to be implemented to be functional
+    ppt_report_path = None
     try:
-        ppt_generator = MarketStudyPresentation(competitor_data_file=competitor_data_file, market_data_file=market_data_file)
-        ppt_report_path = ppt_generator.generate_presentation()
+        ppt_generator = MarketStudyPresentation(competitor_data_file, market_data_file)
+        ppt_report_path = ppt_generator.generate_full_presentation()
+        if ppt_report_path:
+            print(f"PowerPoint report generated: {ppt_report_path}")
+        else:
+            print("PowerPoint report generation failed or was skipped.")
+    except FileNotFoundError as e:
+        print(f"Error initializing PowerPoint generator: {e}. Ensure data files exist.")
+    except ImportError:
+        print("Warning: python-pptx library not found. PowerPoint report generation is skipped.")
+        print("Install it using: pip install python-pptx")
     except Exception as e:
-        print(f"Error generating PowerPoint report: {e}")
-
-    if excel_report_path or ppt_report_path:
-        print("Report generation process completed.")
-    else:
-        print("All report generation attempts failed.")
+        print(f"An unexpected error occurred during PowerPoint report generation: {e}")
 
     return excel_report_path, ppt_report_path
 

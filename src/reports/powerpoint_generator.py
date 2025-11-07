@@ -47,174 +47,191 @@ class MarketStudyPresentation:
             except OSError as e:
                 print(f"Error creating directory {self.reports_dir}: {e}")
 
-    def _add_title_slide(self, title_text: str, subtitle_text: str = "") -> None:
+    def _add_title_slide(self, title_text: str, subtitle: Optional[str] = None) -> None:
         """Adds a title slide to the presentation."""
-        title_slide_layout = self.prs.slide_layouts[0]
+        title_slide_layout = self.prs.slide_layouts[0] # Title slide layout
         slide = self.prs.slides.add_slide(title_slide_layout)
         title = slide.shapes.title
-        subtitle = slide.placeholders[1]
+        subtitle_shape = slide.placeholders[1] if len(slide.placeholders) > 1 else None
+
         title.text = title_text
-        subtitle.text = subtitle_text
+        if subtitle and subtitle_shape:
+            subtitle_shape.text = subtitle
 
     def _add_bullet_slide(self, title_text: str, bullet_points: List[str]) -> None:
         """Adds a slide with a title and bullet points."""
-        bullet_slide_layout = self.prs.slide_layouts[1]
+        bullet_slide_layout = self.prs.slide_layouts[1] # Title and Content layout
         slide = self.prs.slides.add_slide(bullet_slide_layout)
-        shapes = slide.shapes
-
-        title_shape = shapes.title
-        body_shape = shapes.placeholders[1]
-
-        title_shape.text = title_text
-
+        title = slide.shapes.title
+        body_shape = slide.shapes.placeholders[1]
         tf = body_shape.text_frame
-        tf.text = bullet_points[0] # Set the first bullet point
-        for point in bullet_points[1:]:
+
+        title.text = title_text
+        tf.clear() # Clear existing text
+        p = tf.add_paragraph()
+        p.text = bullet_points[0]
+        p.font.size = Pt(14)
+        p.level = 0
+
+        for i in range(1, len(bullet_points)):
             p = tf.add_paragraph()
-            p.text = point
-            p.level = 0 # Adjust level for sub-bullets if needed
+            p.text = bullet_points[i]
+            p.font.size = Pt(12)
+            p.level = 1 # Indent for sub-bullets
 
-    def _add_chart_slide(self, title_text: str, chart_data: CategoryChartData, chart_type=XL_CHART_TYPE.BAR) -> None:
-        """Adds a slide with a chart."""
-        slide_layout = self.prs.slide_layouts[5] # Blank slide layout
-        slide = self.prs.slides.add_slide(slide_layout)
-        shapes = slide.shapes
-
-        # Add chart title
-        left = top = width = height = Inches(1) # Placeholder values, will be adjusted
-        txBox = shapes.add_textbox(left, top, width, height)
-        tf = txBox.text_frame
-        tf.text = title_text
-        tf.paragraphs[0].font.size = Pt(18)
-        tf.paragraphs[0].font.bold = True
-        tf.paragraphs[0].alignment = PP_ALIGN.CENTER
-
-        # Position and size the chart
-        chart_left = Inches(0.5)
-        chart_top = Inches(1.5)
-        chart_width = Inches(12.33)
-        chart_height = Inches(5.5)
-
-        graphic_frame = shapes.add_chart(
-            chart_type, chart_left, chart_top, chart_width, chart_height, chart_data
-        )
-        chart = graphic_frame.chart
-
-        # Customize chart appearance
-        chart.has_legend = True
-        chart.legend.position = XL_LEGEND_POSITION.BOTTOM
-        chart.legend.include_in_layout = False
-        chart.value_axis.has_major_gridlines = True
-
-        # Add data labels if applicable (e.g., for bar charts)
-        if chart_type == XL_CHART_TYPE.BAR:
-            plot = chart.plots[0]
-            plot.has_data_labels = True
-            data_labels = plot.data_labels
-            data_labels.position = XL_LABEL_POSITION.OUTSIDE_END
-
-
-    def _load_competitor_data_for_chart(self) -> Optional[pd.DataFrame]:
-        """Loads and prepares competitor data for charting."""
-        if os.path.exists(self.competitor_data_file):
-            try:
-                df = pd.read_excel(self.competitor_data_file)
-                df.columns = df.columns.str.strip()
-                # Calculate strength count for the chart
-                df['Strength_Count'] = df['Strengths'].astype(str).apply(lambda x: len(x.split(',')) if x and x.strip() else 0)
-                # Sort by strength count for better visualization
-                return df.sort_values('Strength_Count', ascending=False)
-            except Exception as e:
-                print(f"Error loading or processing competitor data for chart: {e}")
-                return None
-        else:
-            print(f"Competitor data file not found: {self.competitor_data_file}")
+    def _load_excel_data(self, filepath: str) -> Optional[pd.DataFrame]:
+        """Loads data from an Excel file, handling potential errors."""
+        if not os.path.exists(filepath):
+            print(f"Error: Data file not found at '{filepath}'.")
+            return None
+        try:
+            df = pd.read_excel(filepath)
+            # Clean column names in case they have leading/trailing spaces
+            df.columns = df.columns.str.strip()
+            return df
+        except FileNotFoundError:
+            print(f"Error: File not found: {filepath}")
+            return None
+        except Exception as e:
+            print(f"Error reading Excel file {filepath}: {e}")
             return None
 
-    def _load_market_data_for_presentation(self) -> Optional[Dict[str, Any]]:
-        """Loads market data from JSON."""
-        if os.path.exists('data/market_data.json'):
-            try:
-                with open('data/market_data.json', 'r', encoding='utf-8') as f:
-                    return pd.DataFrame(json.load(f)).to_dict('records')[0]
-            except Exception as e:
-                print(f"Error loading market data from JSON: {e}")
-                return None
-        else:
-            print("Market data JSON file not found.")
-            return None
+    def _add_competitor_analysis_slide(self):
+        """Adds a slide summarizing competitor analysis."""
+        slide_title = "Analyse de la Concurrence"
+        bullet_points = []
 
-    def generate_presentation(self) -> Optional[str]:
+        df_competitors = self._load_excel_data(self.competitor_data_file)
+
+        if df_competitors is None or df_competitors.empty:
+            bullet_points.append("Données de concurrents non trouvées ou vides.")
+        else:
+            total_competitors = len(df_competitors)
+            bullet_points.append(f"Nombre total de concurrents analysés : {total_competitors}")
+
+            # Example: Most common specializations
+            if 'Specialization' in df_competitors.columns:
+                specializations = df_competitors['Specialization'].dropna().astype(str).str.lower().str.split(',')
+                all_specializations = [item.strip() for sublist in specializations for item in sublist if item.strip()]
+                if all_specializations:
+                    from collections import Counter
+                    spec_counts = Counter(all_specializations)
+                    top_specs = spec_counts.most_common(3)
+                    specs_str = ", ".join([f"{spec} ({count})" for spec, count in top_specs])
+                    bullet_points.append(f"Spécialisations courantes : {specs_str}")
+                else:
+                    bullet_points.append("Aucune spécialisation trouvée.")
+            else:
+                bullet_points.append("Colonne 'Specialization' manquante.")
+
+            # Example: Market position distribution
+            if 'Market Position' in df_competitors.columns:
+                market_position_counts = df_competitors['Market Position'].dropna().astype(str).str.lower().value_counts()
+                if not market_position_counts.empty:
+                    pos_str = ", ".join([f"{pos}: {count}" for pos, count in market_position_counts.items()])
+                    bullet_points.append(f"Position sur le marché : {pos_str}")
+                else:
+                    bullet_points.append("Aucune position sur le marché enregistrée.")
+            else:
+                bullet_points.append("Colonne 'Market Position' manquante.")
+
+        self._add_bullet_slide(slide_title, bullet_points)
+
+    def _add_market_overview_slide(self):
+        """Adds a slide summarizing market overview."""
+        slide_title = "Aperçu du Marché"
+        bullet_points = []
+
+        # Prefer loading from the market_data.json for direct access to structured data
+        market_data_dict = None
+        try:
+            from ..data.market_data import MarketDataHandler
+            handler = MarketDataHandler()
+            market_data_dict = handler.get_market_info()
+        except ImportError:
+            print("Warning: Could not import MarketDataHandler. Trying to load from Excel.")
+            df_market = self._load_excel_data(self.market_data_file)
+            if df_market is not None:
+                try:
+                    # Convert DataFrame back to dictionary, assuming 'Category' and 'Details' columns
+                    market_data_dict = {}
+                    for index, row in df_market.iterrows():
+                        market_data_dict[row['Category'].lower().replace(' ', '_')] = row['Details']
+                except KeyError:
+                    print("Error: Market overview Excel missing 'Category' or 'Details' columns.")
+                    market_data_dict = None
+        except Exception as e:
+            print(f"Error loading market data: {e}")
+
+        if market_data_dict is None:
+            bullet_points.append("Données du marché non trouvées ou chargement échoué.")
+        else:
+            bullet_points.append(f"Industrie : {market_data_dict.get('industry', 'N/A')}")
+            bullet_points.append(f"Localisation : {market_data_dict.get('location', 'N/A')}")
+
+            target_market = market_data_dict.get('target_market', [])
+            if target_market:
+                bullet_points.append("Marché Cible :")
+                for item in target_market:
+                    bullet_points.append(f"  - {item}")
+            
+            trends = market_data_dict.get('market_trends', [])
+            if trends:
+                bullet_points.append("Tendances du Marché :")
+                for item in trends:
+                    bullet_points.append(f"  - {item}")
+            
+            opportunities = market_data_dict.get('potential_opportunities', [])
+            if opportunities:
+                bullet_points.append("Opportunités Potentielles :")
+                for item in opportunities:
+                    bullet_points.append(f"  - {item}")
+
+        self._add_bullet_slide(slide_title, bullet_points)
+        
+    def _add_key_takeaways_slide(self):
+        """Adds a slide for key takeaways and recommendations."""
+        slide_title = "Points Clés et Recommandations"
+        bullet_points = [
+            "Nécessité d'une veille concurrentielle continue.",
+            "Exploiter les contacts APE pour les événements scolaires.",
+            "Envisager l'achat direct en Chine pour les machines afin de réduire les coûts.",
+            "Développer des offres packagées pour diversifier les revenus.",
+            "Renforcer la présence en ligne et sur les réseaux sociaux.",
+            "Identifier les niches de marché non couvertes par la concurrence."
+        ]
+        self._add_bullet_slide(slide_title, bullet_points)
+
+
+    def generate_full_presentation(self) -> Optional[str]:
         """
-        Generates the market study PowerPoint presentation.
+        Generates the full PowerPoint presentation and saves it.
 
         Returns:
-            Optional[str]: The path to the generated PPTX file, or None if generation failed.
+            Optional[str]: The path to the saved presentation file, or None if generation failed.
         """
         try:
-            # --- Slide 1: Title Slide ---
-            self._add_title_slide("Étude de Marché - Location Festive Niort", "Analyse et Recommandations Stratégiques")
+            self._add_title_slide("Étude de Marché - Location Festive Niort", "Analyse Complète du Secteur")
+            self._add_competitor_analysis_slide()
+            self._add_market_overview_slide()
+            self._add_key_takeaways_slide()
 
-            # --- Slide 2: Introduction / Business Context ---
-            self._add_bullet_slide("Contexte de l'Entreprise", [
-                "Entreprise : Location Festive Niort",
-                "Secteur : Location de matériel festif (machines à popcorn, barbe à papa, etc.)",
-                "Zone Géographique : Niort et ses environs",
-                "Objectif : Analyser le marché et identifier les opportunités de croissance."
-            ])
+            # Save the presentation
+            if not os.path.exists(self.reports_dir):
+                try:
+                    os.makedirs(self.reports_dir)
+                    print(f"Created directory: {self.reports_dir}")
+                except OSError as e:
+                    print(f"Error creating directory {self.reports_dir}: {e}")
+                    return None
 
-            # --- Slide 3: Market Overview ---
-            market_info = self._load_market_data_for_presentation()
-            if market_info:
-                bullet_points = [f"{key.replace('_', ' ').title()}: {', '.join(value) if isinstance(value, list) else value}" for key, value in market_info.items()]
-                self._add_bullet_slide("Aperçu du Marché", bullet_points)
-            else:
-                self._add_bullet_slide("Aperçu du Marché", ["Données du marché non disponibles."])
-
-            # --- Slide 4: Competitor Analysis Summary ---
-            competitor_df = self._load_competitor_data_for_chart()
-            if competitor_df is not None and not competitor_df.empty:
-                competitor_analysis_results = CompetitorAnalysis().analyze_competitor_strengths()
-                
-                summary_points = [
-                    f"Nombre total de concurrents analysés : {competitor_analysis_results.get('total_competitors', 'N/A')}",
-                    f"Positionnement moyen sur le marché : {competitor_analysis_results.get('market_position_distribution', {})}",
-                    f"Répartition par spécialisation : {competitor_analysis_results.get('competitors_by_specialization', {})}"
-                ]
-                self._add_bullet_slide("Analyse de la Concurrence (Synthèse)", summary_points)
-
-                # --- Slide 5: Competitor Strengths Chart ---
-                chart_data = CategoryChartData()
-                chart_data.categories = competitor_df['Competitor'].tolist()
-                chart_data.add_series('Nombre de points forts', competitor_df['Strength_Count'].tolist())
-                self._add_chart_slide("Nombre de Points Forts par Concurrent", chart_data, XL_CHART_TYPE.BAR)
-            else:
-                 self._add_bullet_slide("Analyse de la Concurrence", ["Données des concurrents non disponibles pour l'analyse."])
-
-
-            # --- Slide 6: Differentiation & Opportunities ---
-            self._add_bullet_slide("Facteurs Clés de Différenciation et Opportunités", [
-                "Possibilité d'acheter des machines directement en Chine (avantage coût).",
-                "Réseau de contacts avec des Associations de Parents d'Élèves (APE) pour événements scolaires.",
-                "Offrir des services personnalisés et des forfaits attractifs.",
-                "Mettre en avant la présence locale et la réactivité.",
-                "Développer une stratégie de marketing digital ciblée (SEO local, réseaux sociaux)."
-            ])
-
-            # --- Slide 7: Conclusion & Recommendations ---
-            self._add_bullet_slide("Conclusion et Recommandations", [
-                "Le marché de la location de matériel festif à Niort présente des opportunités.",
-                "Exploiter les avantages de sourcing (Chine) pour proposer des prix compétitifs.",
-                "Renforcer les partenariats avec les établissements scolaires et organisateurs d'événements.",
-                "Investir dans la présence en ligne et la communication ciblée.",
-                "Se différencier par la qualité du service et la personnalisation des offres."
-            ])
-
-            # --- Save the presentation ---
             self.prs.save(self.output_filename)
-            print(f"Market study presentation generated successfully at: {self.output_filename}")
+            print(f"Presentation saved successfully to '{self.output_filename}'")
             return self.output_filename
 
+        except ImportError:
+            print("Error: python-pptx library is not installed. Please install it: pip install python-pptx")
+            return None
         except Exception as e:
             print(f"An error occurred during presentation generation: {e}")
             return None

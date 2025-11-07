@@ -45,6 +45,11 @@ class CompetitorDataCollector:
                 print(f"Error creating directory {self.data_dir}: {e}")
                 return None
 
+        # Check if template already exists to avoid overwriting without explicit intent
+        if os.path.exists(self.template_filepath):
+            print(f"Template file '{self.template_filepath}' already exists. Skipping creation.")
+            return self.template_filepath
+
         data = {
             'Competitor': self.competitors,
             'Website': [''] * len(self.competitors),
@@ -60,7 +65,7 @@ class CompetitorDataCollector:
 
         try:
             df.to_excel(self.template_filepath, index=False)
-            print(f"Competitor research template created at: {self.template_filepath}")
+            print(f"Competitor template created at: {self.template_filepath}")
             return self.template_filepath
         except Exception as e:
             print(f"Error saving competitor template to {self.template_filepath}: {e}")
@@ -71,45 +76,50 @@ class CompetitorDataCollector:
         Loads competitor data from the JSON file if it exists.
 
         Returns:
-            Optional[pd.DataFrame]: DataFrame with competitor data, or None if file not found or error.
+            Optional[pd.DataFrame]: A DataFrame with competitor data, or None if the file is not found or an error occurs.
         """
-        if os.path.exists(self.json_filepath):
-            try:
-                with open(self.json_filepath, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                df = pd.DataFrame(data)
-                print(f"Competitor data loaded from {self.json_filepath}")
-                return df
-            except json.JSONDecodeError:
-                print(f"Error: Could not decode JSON from {self.json_filepath}. File might be corrupted.")
-                return None
-            except Exception as e:
-                print(f"Error loading competitor data from {self.json_filepath}: {e}")
-                return None
-        else:
-            print(f"Competitor data file not found at {self.json_filepath}. Please run data collection.")
+        if not os.path.exists(self.json_filepath):
+            print(f"Competitor data file '{self.json_filepath}' not found. Please run data collection first.")
+            return None
+        try:
+            with open(self.json_filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            df = pd.DataFrame(data)
+            print(f"Competitor data loaded from '{self.json_filepath}'.")
+            return df
+        except FileNotFoundError:
+            print(f"Error: Competitor data file '{self.json_filepath}' not found.")
+            return None
+        except json.JSONDecodeError:
+            print(f"Error: Could not decode JSON from '{self.json_filepath}'. File might be corrupted.")
+            return None
+        except Exception as e:
+            print(f"Error loading competitor data from {self.json_filepath}: {e}")
             return None
 
     def save_competitor_data(self, df: pd.DataFrame) -> str:
         """
-        Saves competitor data to a JSON file.
+        Saves the provided DataFrame to a JSON file.
 
         Args:
-            df (pd.DataFrame): The DataFrame containing competitor data.
+            df (pd.DataFrame): The DataFrame to save.
 
         Returns:
-            str: A status message indicating success or failure.
+            str: A status message indicating whether the save operation was successful.
         """
         if not os.path.exists(self.data_dir):
             try:
                 os.makedirs(self.data_dir)
                 print(f"Created directory: {self.data_dir}")
             except OSError as e:
-                return f"Error creating directory {self.data_dir}: {e}"
+                print(f"Error creating directory {self.data_dir}: {e}")
+                return f"Failed to save: Could not create data directory."
 
         try:
-            df.to_json(self.json_filepath, orient='records', indent=4, force_ascii=False)
-            return f"Competitor data saved successfully to {self.json_filepath}"
+            # Convert NaN to None for JSON compatibility
+            df_json = df.where(pd.notnull(df), None)
+            df_json.to_json(self.json_filepath, indent=4, orient='records', force_ascii=False)
+            return f"Competitor data saved successfully to '{self.json_filepath}'."
         except Exception as e:
             return f"Error saving competitor data to {self.json_filepath}: {e}"
 
